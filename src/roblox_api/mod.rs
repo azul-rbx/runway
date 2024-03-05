@@ -72,9 +72,6 @@ pub enum RobloxApiError {
     #[error("Failed to retrieve asset ID from Roblox cloud")]
     AssetGetFailed,
 
-    #[error("Either a group or a user ID must be specified when using an API key")]
-    ApiKeyNeedsCreatorId,
-
     #[error("Tarmac is unable to locate an authentication method")]
     MissingAuth,
 

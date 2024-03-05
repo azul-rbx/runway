@@ -1,25 +1,19 @@
-use std::{
-    fmt::{self, Write},
-    marker::PhantomData,
-    str::FromStr,
-};
+use std::{fmt::{self, Write}, marker::PhantomData, str::FromStr};
 
-use anyhow::{bail, Result};
 use async_trait::async_trait;
 use log::info;
 use reqwest::{
     header::{HeaderValue, COOKIE},
     Client, Request, Response, StatusCode,
 };
+use anyhow::{bail, Result};
 use secrecy::ExposeSecret;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 
 use crate::auth_cookie::get_csrf_token;
-use xml::{
-    name::OwnedName,
-    reader::{EventReader, XmlEvent},
-};
+use xml::{name::OwnedName, reader::{EventReader, XmlEvent}};
+
 
 use super::{ImageUploadData, RobloxApiClient, RobloxApiError, RobloxCredentials, UploadResponse};
 
@@ -38,7 +32,7 @@ pub struct LegacyClient<'a> {
     credentials: RobloxCredentials,
     csrf_token: RwLock<Option<HeaderValue>>,
     client: Client,
-    _marker: PhantomData<&'a ()>,
+    _marker: PhantomData<&'a ()>
 }
 
 impl<'a> fmt::Debug for LegacyClient<'a> {
@@ -64,14 +58,14 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
                     credentials,
                     csrf_token,
                     client: Client::new(),
-                    _marker: PhantomData::default(),
+                    _marker: PhantomData::default()
                 })
             }
             _ => Ok(Self {
                 credentials,
                 csrf_token: RwLock::new(None),
                 client: Client::new(),
-                _marker: PhantomData::default(),
+                _marker: PhantomData::default()
             }),
         }
     }
@@ -79,9 +73,8 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
     async fn download_image(&self, id: u64) -> Result<Vec<u8>> {
         let url = format!("https://assetdelivery.roblox.com/v1/asset/?id={}", id);
 
-        let mut response = self
-            .execute_with_csrf_retry(|client| Ok(client.get(&url).build()?))
-            .await?;
+        let mut response =
+            self.execute_with_csrf_retry(|client| Ok(client.get(&url).build()?)).await?;
 
         let mut buffer = Vec::new();
         response.copy_to(&mut buffer)?;
@@ -90,10 +83,10 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
         // ignore the StartDocument event, if it exists
         let Ok(XmlEvent::StartDocument { .. }) = parser.next() else {
             // if not, then this probably isn't well-formed XML and we should bail
-            return Ok(buffer);
+            return Ok(buffer)
         };
 
-        if let Ok(XmlEvent::StartElement { name, .. }) = parser.next() {
+        if let Ok(XmlEvent::StartElement { name, ..}) = parser.next() {
             if name != OwnedName::from_str("roblox").unwrap() {
                 bail!("Unknown XML from asset delivery API")
             }
@@ -131,21 +124,21 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
 
             let url = format!("https://assetdelivery.roblox.com/v1/asset/?id={}", asset_id);
 
-            let mut response = self
-                .execute_with_csrf_retry(|client| Ok(client.get(&url).build()?))
-                .await?;
-
+            let mut response =
+                self.execute_with_csrf_retry(|client| Ok(client.get(&url).build()?)).await?;
+    
             let mut buffer = Vec::new();
             response.copy_to(&mut buffer)?;
 
             Ok(buffer)
-        } else {
+        } 
+        else {
             Ok(buffer)
         }
     }
 
     /// Upload an image, returning an error if anything goes wrong.
-    async fn upload_image(&self, data: ImageUploadData<'a>) -> Result<UploadResponse> {
+    async fn upload_image(&self, data: ImageUploadData::<'a>) -> Result<UploadResponse> {
         let response = self.upload_image_raw(data).await?;
 
         // Some other errors will be reported inside the response, even
@@ -169,25 +162,23 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
 impl<'a> LegacyClient<'a> {
     /// Upload an image, returning the raw response returned by the endpoint,
     /// which may have further failures to handle.
-    async fn upload_image_raw(&self, data: ImageUploadData<'a>) -> Result<RawUploadResponse> {
+    async fn upload_image_raw(
+        &self,
+        data: ImageUploadData::<'a>,
+    ) -> Result<RawUploadResponse> {
         let mut url = "https://data.roblox.com/data/upload/json?assetTypeId=13".to_owned();
 
         if let Some(id) = &self.credentials.group_id {
             write!(url, "&groupId={}", id).unwrap();
         }
 
-        let mut response = self
-            .execute_with_csrf_retry(|client| {
-                Ok(client
-                    .post(&url)
-                    .query(&[
-                        ("name", data.name.clone()),
-                        ("description", data.description.clone()),
-                    ])
-                    .body(data.image_data.clone().into_owned())
-                    .build()?)
-            })
-            .await?;
+        let mut response = self.execute_with_csrf_retry(|client| {
+            Ok(client
+                .post(&url)
+                .query(&[("name", data.name.clone()), ("description", data.description.clone())])
+                .body(data.image_data.clone().into_owned())
+                .build()?)
+        }).await?;
 
         let body = response.text()?;
 
@@ -201,8 +192,7 @@ impl<'a> LegacyClient<'a> {
             Err(RobloxApiError::ResponseError {
                 status: response.status(),
                 body,
-            }
-            .into())
+            }.into())
         }
     }
 
@@ -221,7 +211,7 @@ impl<'a> LegacyClient<'a> {
             StatusCode::FORBIDDEN => {
                 if let Some(csrf) = response.headers().get("X-CSRF-Token") {
                     log::debug!("Retrying request with X-CSRF-Token...");
-
+                    
                     let mut csrf_token = self.csrf_token.write().await;
                     *csrf_token = Some(csrf.clone());
 

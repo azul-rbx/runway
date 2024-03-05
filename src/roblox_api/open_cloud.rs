@@ -102,7 +102,7 @@ impl<'a> OpenCloudClient<'a> {
                 let res = self.assets.get(&operation).await?;
                 let Some(response) = res.response else {
                     if retry_count > MAX_RETRIES {
-                        return Err(RobloxApiError::AssetGetFailed);
+                        bail!(RobloxApiError::AssetGetFailed);
                     }
 
                     retry_count += 1;
@@ -111,7 +111,7 @@ impl<'a> OpenCloudClient<'a> {
                 };
 
                 let Ok(asset_id) = response.asset_id.parse::<u64>() else {
-                    return Err(RobloxApiError::AssetGetFailed);
+                    bail!(RobloxApiError::AssetGetFailed);
                 };
 
                 return Ok(asset_id);
