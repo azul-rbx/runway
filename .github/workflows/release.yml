@@ -7,6 +7,9 @@ on:
 defaults:
   run:
     shell: bash
+    
+permissions:
+  contents: write
 
 jobs:
   init:
@@ -38,7 +41,7 @@ jobs:
             artifact: runway-${{ needs.init.outputs.version }}-linux-x86_64
             target: x86_64-unknown-linux-gnu
           - runner: macos-latest
-            artifact: lune-${{ needs.init.outputs.version }}-macos-aarch64
+            artifact: runway-${{ needs.init.outputs.version }}-macos-aarch64
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
     name: Build (${{ matrix.target }})
@@ -80,8 +83,11 @@ jobs:
         with:
           path: releases
           pattern: runway-*
-          merge-multiple: true
-      - run: find ./releases -name 'runway-*' -exec mv {} ${GITHUB_WORKSPACE}/{}.zip \;
+      - run: |
+         ls -alR ./releases
+         pushd ./releases
+         find . -name 'runway-*' -exec sh -c 'mv {}/out.zip ${GITHUB_WORKSPACE}/$(basename {}).zip' \;
+         popd
       - name: Create release
         uses: softprops/action-gh-release@v1
         env:
