@@ -102,7 +102,7 @@ pub enum RobloxApiError {
     MalformedAssetId(#[from] std::num::ParseIntError),
 }
 
-pub fn get_preferred_client<'a>(
+pub fn get_preferred_client(
     credentials: RobloxCredentials,
 ) -> Result<Box<dyn RobloxApiClient<'static>>> {
     match &credentials {

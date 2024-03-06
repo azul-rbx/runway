@@ -33,7 +33,7 @@ use crate::commands::Command;
 use crate::options::Options;
 
 async fn run(options: Options) -> Result<(), anyhow::Error> {
-    let _ = match options.command {
+    match options.command {
         Command::UploadImage(sub_options) => {
             commands::upload_image(options.global, sub_options).await
         }
@@ -66,17 +66,14 @@ async fn main() {
             },
         };
 
-        eprintln!("Tarmac crashed!");
-        eprintln!("This is probably a Tarmac bug.");
-        eprintln!("");
+        eprintln!("Runway crashed!");
+        eprintln!("This is probably a Runway bug.");
         eprintln!(
             "Please consider filing an issue: {}/issues",
             env!("CARGO_PKG_REPOSITORY")
         );
-        eprintln!("");
         eprintln!("If you can reproduce this crash, try adding the -v, -vv, or -vvv flags.");
         eprintln!("This might give you more information to figure out what went wrong!");
-        eprintln!("");
         eprintln!("Details: {}", message);
 
         if let Some(location) = panic_info.location() {

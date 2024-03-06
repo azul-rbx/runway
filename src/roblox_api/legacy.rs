@@ -75,14 +75,14 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
                     credentials,
                     csrf_token,
                     client: Client::new(),
-                    _marker: PhantomData::default(),
+                    _marker: PhantomData,
                 })
             }
             _ => Ok(Self {
                 credentials,
                 csrf_token: RwLock::new(None),
                 client: Client::new(),
-                _marker: PhantomData::default(),
+                _marker: PhantomData,
             }),
         }
     }

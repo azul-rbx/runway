@@ -37,7 +37,7 @@ pub async fn asset_list(_: Global, options: AssetListOptions) -> Result<()> {
         None => env::current_dir()?,
     };
 
-    let manifest = Manifest::read_from_folder(&project_path)?;
+    let manifest = Manifest::read_from_folder(project_path)?;
 
     let mut asset_list = BTreeSet::new();
     for input_manifest in manifest.inputs.values() {

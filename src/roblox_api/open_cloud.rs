@@ -60,7 +60,7 @@ impl<'a> RobloxApiClient<'a> for OpenCloudClient<'a> {
             creator,
             assets,
             credentials,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         })
     }
 

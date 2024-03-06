@@ -103,7 +103,7 @@ where
                         Err(err.into())
                     }
                 } else {
-                    Err(err.into())
+                    Err(err)
                 }
             }
         }
