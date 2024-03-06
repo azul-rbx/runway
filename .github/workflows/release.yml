@@ -4,55 +4,81 @@ on:
   push:
     tags: ["*"]
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  windows:
-    runs-on: windows-latest
-
-    steps:
-    - uses: actions/checkout@v1
-
-    - name: Build release binary
-      run: cargo build --verbose --locked --release
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: runway-win64
-        path: target/release/runway.exe
-
-  macos:
-    runs-on: macos-latest
-
-    steps:
-    - uses: actions/checkout@v1
-
-    - name: Install Rust
-      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
-    - name: Build release binary
-      run: |
-        source $HOME/.cargo/env
-        cargo build --verbose --locked --release
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: runway-macos
-        path: target/release/runway
-
-  linux:
+  init:
+    name: Init
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.get_version.outputs.value }}
     steps:
-    - uses: actions/checkout@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Build
-      run: cargo build --locked --verbose --release
-      env:
-        OPENSSL_STATIC: 1
+      - name: Get version from manifest
+        uses: SebRollen/toml-action@9062fbef52816d61278d24ce53c8070440e1e8dd
+        id: get_version
+        with:
+          file: Cargo.toml
+          field: package.version
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: runway-linux
-        path: target/release/runway
+  build:
+    needs: ["init"]
+    strategy:
+      fail-fast: true 
+      matrix:
+        include:
+          - runner: windows-xlarge
+            artifact: runway-${{ needs.init.outputs.version }}-windows-x86_64
+            target: x86_64-pc-windows-msvc
+          - runner: ubuntu-xlarge
+            artifact: runway-${{ needs.init.outputs.version }}-linux-x86_64
+            target: x86_64-unknown-linux-gnu
+          - runner: macos-latest
+            artifact: lune-${{ needs.init.outputs.version }}-macos-aarch64
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    name: Build (${{ matrix.target }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build --locked --release --target ${{ matrix.target }}
+      - if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: |
+          mkdir out
+          cp "target/${{ matrix.target }}/release/runway.exe" out/
+      - if: matrix.target != 'x86_64-pc-windows-msvc'
+        run: |
+          mkdir out
+          cp "target/${{ matrix.target }}/release/runway" out/
+      - run: |
+          7z a out.zip out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: out.zip
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: ["init", "build"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v3
+        with:
+          path: ./releases
+      - run: find ./releases -name 'runway-*' -exec mv {} ${GITHUB_WORKSPACE}/{}.zip \;
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: ${{ needs.init.outputs.version }}
+          tag_name: v${{ needs.init.outputs.version }}
+          fail_on_unmatched_files: true
+          files: "*.zip"
+          draft: true
