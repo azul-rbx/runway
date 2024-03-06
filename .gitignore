@@ -1,3 +1,4 @@
 /target
 
 /.tarmac-debug
+.DS_Store
