@@ -76,9 +76,11 @@ jobs:
     needs: ["init", "build"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          path: ./releases
+          path: releases
+          pattern: runway-*
+          merge-multiple: true
       - run: find ./releases -name 'runway-*' -exec mv {} ${GITHUB_WORKSPACE}/{}.zip \;
       - name: Create release
         uses: softprops/action-gh-release@v1
