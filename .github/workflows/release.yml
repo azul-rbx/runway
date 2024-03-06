@@ -17,8 +17,8 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
-        name: tarmac-win64
-        path: target/release/tarmac.exe
+        name: runway-win64
+        path: target/release/runway.exe
 
   macos:
     runs-on: macos-latest
@@ -37,8 +37,8 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
-        name: tarmac-macos
-        path: target/release/tarmac
+        name: runway-macos
+        path: target/release/runway
 
   linux:
     runs-on: ubuntu-latest
@@ -54,5 +54,5 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
-        name: tarmac-linux
-        path: target/release/tarmac
+        name: runway-linux
+        path: target/release/runway
