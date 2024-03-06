@@ -113,28 +113,12 @@ pub fn get_preferred_client<'a>(
         } => Err(RobloxApiError::MissingAuth.into()),
 
         RobloxCredentials {
-            group_id: Some(_),
-            user_id: Some(_),
-            ..
-        } => Err(RobloxApiError::AmbiguousCreatorType.into()),
-
-        RobloxCredentials {
             api_key: Some(_), ..
         } => Ok(Box::new(OpenCloudClient::new(credentials)?)),
 
         RobloxCredentials {
-            token: Some(_),
-            user_id,
-            ..
+            token: Some(_), ..
         } => {
-            if user_id.is_some() {
-                log::warn!("A user ID was specified, but no API key was specified.
-
-Tarmac will attempt to upload to the user currently logged into Roblox Studio, or to the user associated with the token given in --auth.
-
-If you mean to use the Open Cloud API, make sure to provide an API key!")
-            };
-
             Ok(Box::new(LegacyClient::new(credentials)?))
         }
     }
