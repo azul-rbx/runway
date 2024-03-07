@@ -74,10 +74,7 @@ impl SyncInput {
 
     /// Creates a non-unique, human-friendly name to refer to this input.
     pub fn human_name(&self) -> String {
-        let file_stem = self
-            .path_without_dpi_scale
-            .to_str()
-            .unwrap();
+        let file_stem = self.path_without_dpi_scale.to_str().unwrap();
 
         if self.path == self.path_without_dpi_scale {
             file_stem.to_owned()

@@ -10,12 +10,20 @@
 */
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque}, env, io::{self, BufWriter, Write}, path::{Path, PathBuf}, time::Duration
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
+    env,
+    io::{self, BufWriter, Write},
+    path::{Path, PathBuf},
+    time::Duration,
 };
 
 use anyhow::{bail, Result};
 use fs_err as fs;
-use image::{codecs::png::PngEncoder, imageops::{self, resize}, DynamicImage, GenericImageView, ImageError};
+use image::{
+    codecs::png::PngEncoder,
+    imageops::{self, resize},
+    DynamicImage, GenericImageView, ImageError,
+};
 use packos::{InputItem, SimplePacker};
 use thiserror::Error;
 use walkdir::WalkDir;
@@ -91,10 +99,17 @@ pub enum SyncTarget {
     Local,
 }
 
-async fn sync_session(session: &mut SyncSession, options: &SyncOptions, backend: Box<dyn SyncBackend + Sync + Send + 'static>) {
+async fn sync_session(
+    session: &mut SyncSession,
+    options: &SyncOptions,
+    backend: Box<dyn SyncBackend + Sync + Send + 'static>,
+) {
     if let Some(retry) = options.retry {
-        let retry_backend =
-            Box::new(RetryBackend::new(backend, retry, Duration::from_secs(options.retry_delay)));
+        let retry_backend = Box::new(RetryBackend::new(
+            backend,
+            retry,
+            Duration::from_secs(options.retry_delay),
+        ));
         session.sync_with_backend(options, retry_backend).await;
     } else {
         session.sync_with_backend(options, backend).await;
@@ -124,27 +139,24 @@ pub async fn sync(global: Global, options: SyncOptions) -> Result<()> {
     match &options.target {
         SyncTarget::Roblox => {
             let api_client = get_preferred_client(credentials.clone())?;
-        
+
             sync_session(
                 &mut session,
                 &options,
                 Box::new(RobloxSyncBackend::new(api_client)),
             )
         }
-        SyncTarget::Local => {
-            sync_session(
-                &mut session,
-                &options,
-                Box::new(LocalSyncBackend::new(Some(project_name))?),
-            )
-        }
-        SyncTarget::None => {
-            sync_session(&mut session, &options, Box::new(NoneSyncBackend))
-        }
+        SyncTarget::Local => sync_session(
+            &mut session,
+            &options,
+            Box::new(LocalSyncBackend::new(Some(project_name))?),
+        ),
+        SyncTarget::None => sync_session(&mut session, &options, Box::new(NoneSyncBackend)),
         SyncTarget::Debug => {
             sync_session(&mut session, &options, Box::new(DebugSyncBackend::new()))
         }
-    }.await;
+    }
+    .await;
 
     session.write_manifest()?;
     session.codegen()?;
@@ -156,7 +168,8 @@ pub async fn sync(global: Global, options: SyncOptions) -> Result<()> {
     } else {
         Err(SyncError::HadErrors {
             error_count: session.sync_errors.len(),
-        }.into())
+        }
+        .into())
     }
 }
 
@@ -363,7 +376,8 @@ impl SyncSession {
                     if let Some(existing) = already_found {
                         return Err(SyncError::OverlappingGlobs {
                             path: existing.path,
-                        }.into());
+                        }
+                        .into());
                     }
                 }
             }
@@ -411,11 +425,13 @@ impl SyncSession {
                     } else {
                         self.raise_error(err);
                     }
-
                 }
             } else {
                 for input_name in group {
-                    if let Err(err) = self.sync_unpackable_image(&options, &backend, &input_name).await {
+                    if let Err(err) = self
+                        .sync_unpackable_image(&options, &backend, &input_name)
+                        .await
+                    {
                         if err.is::<SyncError>() {
                             let err = err.downcast::<SyncError>().unwrap();
                             let rate_limited = err.is_rate_limited();
@@ -610,7 +626,9 @@ impl SyncSession {
             .unwrap();
 
         let uploaded_name = input.human_name();
-        let uploaded_name = uploaded_name.strip_prefix(config.folder().to_str().unwrap()).unwrap();
+        let uploaded_name = uploaded_name
+            .strip_prefix(config.folder().to_str().unwrap())
+            .unwrap();
         let upload_data = UploadInfo {
             name: uploaded_name.to_string(),
             contents: encoded_image.to_vec(),
@@ -755,7 +773,10 @@ impl SyncSession {
         Ok(())
     }
 
-    async fn populate_asset_cache(&self, api_client: Box<dyn RobloxApiClient<'static> + Send + Sync>) -> Result<()> {
+    async fn populate_asset_cache(
+        &self,
+        api_client: Box<dyn RobloxApiClient<'static> + Send + Sync>,
+    ) -> Result<()> {
         let cache_path = match &self.root_config().asset_cache_path {
             Some(path) => path,
             None => return Ok(()),

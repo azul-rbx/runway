@@ -9,10 +9,7 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#![warn(
-    clippy::all,
-    clippy::pedantic
-)]
+#![warn(clippy::all, clippy::pedantic)]
 
 mod alpha_bleed;
 mod asset_name;
@@ -45,9 +42,7 @@ async fn run(options: Options) -> Result<(), anyhow::Error> {
         Command::DownloadImage(sub_options) => {
             commands::download_image(options.global, sub_options).await
         }
-        Command::Sync(sub_options) => {
-            commands::sync(options.global, sub_options).await
-        }
+        Command::Sync(sub_options) => commands::sync(options.global, sub_options).await,
         Command::CreateCacheMap(sub_options) => {
             commands::create_cache_map(options.global, sub_options).await
         }

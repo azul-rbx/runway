@@ -116,9 +116,7 @@ pub fn get_preferred_client(
     }
 }
 
-pub fn resolve_web_asset_id(
-    asset_id: u64
-) -> Result<u64> {
+pub fn resolve_web_asset_id(asset_id: u64) -> Result<u64> {
     let url = format!("https://assetdelivery.roblox.com/v1/asset/?id={}", asset_id);
 
     let client = Client::new();
@@ -169,7 +167,7 @@ pub fn resolve_web_asset_id(
         };
 
         let asset_id = u64::from_str(asset_id)?;
-        return Ok(asset_id)
+        return Ok(asset_id);
     }
 
     Ok(asset_id)

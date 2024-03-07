@@ -24,8 +24,10 @@ use secrecy::ExposeSecret;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 
-
-use super::{resolve_web_asset_id, ImageUploadData, RobloxApiClient, RobloxApiError, RobloxCredentials, UploadResponse};
+use super::{
+    resolve_web_asset_id, ImageUploadData, RobloxApiClient, RobloxApiError, RobloxCredentials,
+    UploadResponse,
+};
 
 /// Internal representation of what the asset upload endpoint returns, before
 /// we've handled any errors.

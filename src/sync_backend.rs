@@ -9,12 +9,19 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-use std::{borrow::Cow, io, path::{Path, PathBuf}, sync::Arc, thread, time::Duration};
 use anyhow::Result;
 use async_trait::async_trait;
 use fs_err as fs;
 use reqwest::StatusCode;
 use roblox_install::RobloxStudio;
+use std::{
+    borrow::Cow,
+    io,
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread,
+    time::Duration,
+};
 use thiserror::Error as ThisError;
 use tokio::sync::RwLock;
 
@@ -40,13 +47,11 @@ pub struct UploadInfo {
     pub hash: String,
 }
 
-pub struct RobloxSyncBackend
-{
+pub struct RobloxSyncBackend {
     api_client: Box<dyn RobloxApiClient<'static> + Sync + Send>,
 }
 
-impl RobloxSyncBackend
-{
+impl RobloxSyncBackend {
     pub fn new(api_client: Box<dyn RobloxApiClient<'static> + Sync + Send>) -> Self {
         Self {
             api_client: api_client,
@@ -55,8 +60,7 @@ impl RobloxSyncBackend
 }
 
 #[async_trait]
-impl SyncBackend for RobloxSyncBackend
-{
+impl SyncBackend for RobloxSyncBackend {
     async fn upload(&self, data: UploadInfo) -> Result<UploadResponse> {
         log::info!("Uploading {} to Roblox", &data.name);
 
@@ -123,7 +127,7 @@ impl LocalSyncBackend {
     }
 
     fn get_asset_file_name(&self, data: &UploadInfo) -> String {
-        // XXX: HACK! 
+        // XXX: HACK!
         format!("{}", &data.name[1..])
     }
 }
@@ -163,7 +167,9 @@ pub struct DebugSyncBackend {
 
 impl DebugSyncBackend {
     pub fn new() -> Self {
-        Self { last_id: Arc::new(RwLock::new(0)) }
+        Self {
+            last_id: Arc::new(RwLock::new(0)),
+        }
     }
 }
 
@@ -202,7 +208,11 @@ impl RetryBackend {
     /// Creates a new backend from another SyncBackend. The max_retries parameter gives the number
     /// of times the backend will try again (so given 0, it acts just as the original SyncBackend).
     /// The delay parameter provides the amount of time to wait between each upload attempt.
-    pub fn new(inner: Box<dyn SyncBackend + Sync + Send + 'static>, max_retries: usize, delay: Duration) -> Self {
+    pub fn new(
+        inner: Box<dyn SyncBackend + Sync + Send + 'static>,
+        max_retries: usize,
+        delay: Duration,
+    ) -> Self {
         Self {
             inner,
             delay,
