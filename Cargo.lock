@@ -2251,7 +2251,7 @@ dependencies = [
 
 [[package]]
 name = "runway"
-version = "0.7.6"
+version = "0.7.8"
 dependencies = [
  "anyhow",
  "async-trait",
