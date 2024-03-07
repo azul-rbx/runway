@@ -12,12 +12,10 @@
 use std::{
     fmt::{self, Write},
     marker::PhantomData,
-    str::FromStr,
 };
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use async_trait::async_trait;
-use log::info;
 use reqwest::{
     header::{HeaderValue, COOKIE},
     Client, Request, Response, StatusCode,
@@ -26,11 +24,6 @@ use secrecy::ExposeSecret;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 
-use crate::auth_cookie::get_csrf_token;
-use xml::{
-    name::OwnedName,
-    reader::{EventReader, XmlEvent},
-};
 
 use super::{resolve_web_asset_id, ImageUploadData, RobloxApiClient, RobloxApiError, RobloxCredentials, UploadResponse};
 

@@ -9,14 +9,14 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-use std::{borrow::Cow, io, marker::PhantomData, path::PathBuf, sync::Arc, thread, time::Duration};
-
+use std::{borrow::Cow, io, path::{Path, PathBuf}, sync::Arc, thread, time::Duration};
 use anyhow::Result;
 use async_trait::async_trait;
 use fs_err as fs;
 use reqwest::StatusCode;
 use roblox_install::RobloxStudio;
 use thiserror::Error as ThisError;
+use tokio::sync::RwLock;
 
 use crate::{
     data::AssetId,
@@ -40,30 +40,22 @@ pub struct UploadInfo {
     pub hash: String,
 }
 
-pub struct RobloxSyncBackend<'a, ApiClient>
-where
-    ApiClient: RobloxApiClient<'a> + Sync + Clone + Send,
+pub struct RobloxSyncBackend
 {
-    api_client: Arc<ApiClient>,
-    _marker: PhantomData<&'a ()>,
+    api_client: Box<dyn RobloxApiClient<'static> + Sync + Send>,
 }
 
-impl<'a, ApiClient> RobloxSyncBackend<'a, ApiClient>
-where
-    ApiClient: RobloxApiClient<'a> + Sync + Clone + Send,
+impl RobloxSyncBackend
 {
-    pub fn new(api_client: ApiClient) -> Self {
+    pub fn new(api_client: Box<dyn RobloxApiClient<'static> + Sync + Send>) -> Self {
         Self {
-            api_client: Arc::new(api_client),
-            _marker: PhantomData::default(),
+            api_client: api_client,
         }
     }
 }
 
 #[async_trait]
-impl<'a, ApiClient> SyncBackend for RobloxSyncBackend<'a, ApiClient>
-where
-    ApiClient: RobloxApiClient<'a> + Sync + Clone + Send,
+impl SyncBackend for RobloxSyncBackend
 {
     async fn upload(&self, data: UploadInfo) -> Result<UploadResponse> {
         log::info!("Uploading {} to Roblox", &data.name);
@@ -72,24 +64,20 @@ where
             .api_client
             .upload_image(ImageUploadData {
                 image_data: Cow::Owned(data.contents),
-                name: data.name.clone(),
+                name: "TarmacImage".to_string(),
                 description: "Uploaded by Tarmac.".to_string(),
             })
             .await;
 
         match result {
             Ok(response) => {
-                log::info!("Uploaded {} to ID {}", data.name, response.backing_asset_id);
+                log::info!("Uploaded {} to ID {}", data.name, response.asset_id);
 
                 Ok(UploadResponse {
-                    id: AssetId::Id(response.backing_asset_id),
+                    id: AssetId::Id(response.asset_id),
                 })
             }
 
-            // Err(RobloxApiError::ResponseError {
-            //     status: StatusCode::TOO_MANY_REQUESTS,
-            //     ..
-            // }) => Err(Error::RateLimited),
             Err(err) => {
                 if err.is::<RobloxApiError>() {
                     let err = err.downcast::<RobloxApiError>()?;
@@ -169,33 +157,33 @@ impl SyncBackend for NoneSyncBackend {
 }
 
 pub struct DebugSyncBackend {
-    last_id: u64,
+    last_id: Arc<RwLock<u64>>,
 }
 
 impl DebugSyncBackend {
     pub fn new() -> Self {
-        Self { last_id: 0 }
+        Self { last_id: Arc::new(RwLock::new(0)) }
     }
 }
 
 #[async_trait]
 impl SyncBackend for DebugSyncBackend {
     async fn upload(&self, data: UploadInfo) -> Result<UploadResponse> {
-        todo!();
-        // log::info!("Copying {} to local folder", &data.name);
+        log::info!("Copying {} to local folder", &data.name);
 
-        // self.last_id += 1;
-        // let id = self.last_id;
+        let mut last_id = self.last_id.write().await;
+        *last_id += 1;
+        let id = *last_id;
 
-        // let path = Path::new(".tarmac-debug");
-        // fs::create_dir_all(path)?;
+        let path = Path::new(".tarmac-debug");
+        fs::create_dir_all(path)?;
 
-        // let file_path = path.join(id.to_string());
-        // fs::write(&file_path, &data.contents)?;
+        let file_path = path.join(id.to_string());
+        fs::write(&file_path, &data.contents)?;
 
-        // Ok(UploadResponse {
-        //     id: AssetId::Id(id),
-        // })
+        Ok(UploadResponse {
+            id: AssetId::Id(id),
+        })
     }
 }
 
@@ -203,18 +191,17 @@ impl SyncBackend for DebugSyncBackend {
 /// when a RateLimited error occurs, the thread sleeps for a moment and then tries to reupload the
 /// data.
 ///
-#[derive(Clone, Debug)]
-pub struct RetryBackend<InnerSyncBackend> {
-    inner: InnerSyncBackend,
+pub struct RetryBackend {
+    inner: Box<dyn SyncBackend + Sync + Send + 'static>,
     delay: Duration,
     attempts: usize,
 }
 
-impl<InnerSyncBackend> RetryBackend<InnerSyncBackend> {
+impl RetryBackend {
     /// Creates a new backend from another SyncBackend. The max_retries parameter gives the number
     /// of times the backend will try again (so given 0, it acts just as the original SyncBackend).
     /// The delay parameter provides the amount of time to wait between each upload attempt.
-    pub fn new(inner: InnerSyncBackend, max_retries: usize, delay: Duration) -> Self {
+    pub fn new(inner: Box<dyn SyncBackend + Sync + Send + 'static>, max_retries: usize, delay: Duration) -> Self {
         Self {
             inner,
             delay,
@@ -224,7 +211,7 @@ impl<InnerSyncBackend> RetryBackend<InnerSyncBackend> {
 }
 
 #[async_trait]
-impl<InnerSyncBackend: SyncBackend + Clone + Sync> SyncBackend for RetryBackend<InnerSyncBackend> {
+impl SyncBackend for RetryBackend {
     async fn upload(&self, data: UploadInfo) -> Result<UploadResponse> {
         for index in 0..self.attempts {
             if index != 0 {

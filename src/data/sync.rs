@@ -76,8 +76,6 @@ impl SyncInput {
     pub fn human_name(&self) -> String {
         let file_stem = self
             .path_without_dpi_scale
-            .file_stem()
-            .unwrap()
             .to_str()
             .unwrap();
 

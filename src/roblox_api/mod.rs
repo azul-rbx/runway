@@ -88,14 +88,8 @@ pub enum RobloxApiError {
     #[error("Tarmac is unable to locate an authentication method")]
     MissingAuth,
 
-    #[error("Group ID and user ID cannot both be specified")]
-    AmbiguousCreatorType,
-
     #[error("Operation path is missing")]
     MissingOperationPath,
-
-    #[error("Operation path is malformed")]
-    MalformedOperationPath,
 
     #[error("Open Cloud API error")]
     RbxCloud(RbxCloudError),
@@ -106,7 +100,7 @@ pub enum RobloxApiError {
 
 pub fn get_preferred_client(
     credentials: RobloxCredentials,
-) -> Result<Box<dyn RobloxApiClient<'static>>> {
+) -> Result<Box<dyn RobloxApiClient<'static> + Send + Sync + 'static>> {
     match &credentials {
         RobloxCredentials {
             token: None,
@@ -133,6 +127,7 @@ pub fn resolve_web_asset_id(
     let mut buffer = Vec::new();
     response.copy_to(&mut buffer)?;
 
+    // TODO: what if this is a rbxm?
     let mut parser = EventReader::new(&buffer[..]);
     // ignore the StartDocument event, if it exists
     let Ok(XmlEvent::StartDocument { .. }) = parser.next() else {

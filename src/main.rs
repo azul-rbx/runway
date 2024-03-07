@@ -29,7 +29,7 @@ mod sync_backend;
 
 use std::{env, panic, process};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use backtrace::Backtrace;
 use clap::Parser;
 use tokio::signal;
@@ -45,9 +45,8 @@ async fn run(options: Options) -> Result<(), anyhow::Error> {
         Command::DownloadImage(sub_options) => {
             commands::download_image(options.global, sub_options).await
         }
-        Command::Sync(_) => {
-            // commands::sync(options.global, sync_options)?,
-            Err(anyhow!("unfinished"))
+        Command::Sync(sub_options) => {
+            commands::sync(options.global, sub_options).await
         }
         Command::CreateCacheMap(sub_options) => {
             commands::create_cache_map(options.global, sub_options).await
