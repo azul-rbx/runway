@@ -133,8 +133,8 @@ impl<'a> OpenCloudClient<'a> {
         .await?;
 
         Ok(UploadResponse {
-            asset_id,
-            backing_asset_id: resolve_web_asset_id(asset_id)?,
+            asset_id: resolve_web_asset_id(asset_id)?,
+            backing_asset_id: asset_id,
         })
     }
 }

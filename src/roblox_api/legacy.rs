@@ -91,7 +91,8 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
         // though we received a successful HTTP response.
         if response.success {
             let asset_id = response.asset_id.unwrap();
-            let backing_asset_id = resolve_web_asset_id(response.backing_asset_id.unwrap())?;
+            let backing_asset_id = asset_id;
+            let asset_id = resolve_web_asset_id(backing_asset_id)?;
 
             Ok(UploadResponse {
                 asset_id,
