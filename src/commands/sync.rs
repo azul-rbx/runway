@@ -588,6 +588,7 @@ impl SyncSession {
         backend: &Box<dyn SyncBackend>,
         input_name: &AssetName,
     ) -> Result<()> {
+        let config = self.root_config().clone();
         let input = self.inputs.get_mut(input_name).unwrap();
 
         let mut img = match options.resize {
@@ -598,7 +599,7 @@ impl SyncSession {
             }
             None => image::load_from_memory(&input.contents)?,
         };
-        
+
         alpha_bleed(&mut img);
 
         let (width, height) = img.dimensions();
@@ -608,8 +609,10 @@ impl SyncSession {
             .encode(&img.to_bytes(), width, height, img.color())
             .unwrap();
 
+        let uploaded_name = input.human_name();
+        let uploaded_name = uploaded_name.strip_prefix(config.folder().to_str().unwrap()).unwrap();
         let upload_data = UploadInfo {
-            name: input.human_name(),
+            name: uploaded_name.to_string(),
             contents: encoded_image.to_vec(),
             hash: input.hash.clone(),
         };

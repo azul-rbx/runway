@@ -123,7 +123,8 @@ impl LocalSyncBackend {
     }
 
     fn get_asset_file_name(&self, data: &UploadInfo) -> String {
-        format!("{}.png", data.name)
+        // XXX: HACK! 
+        format!("{}", &data.name[1..])
     }
 }
 
