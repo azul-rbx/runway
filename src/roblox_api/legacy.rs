@@ -32,7 +32,7 @@ use xml::{
     reader::{EventReader, XmlEvent},
 };
 
-use super::{ImageUploadData, RobloxApiClient, RobloxApiError, RobloxCredentials, UploadResponse};
+use super::{resolve_web_asset_id, ImageUploadData, RobloxApiClient, RobloxApiError, RobloxCredentials, UploadResponse};
 
 /// Internal representation of what the asset upload endpoint returns, before
 /// we've handled any errors.
@@ -61,33 +61,16 @@ impl<'a> fmt::Debug for LegacyClient<'a> {
 #[async_trait]
 impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
     fn new(credentials: RobloxCredentials) -> Result<Self> {
-        match &credentials.token {
-            Some(token) => {
-                let csrf_token = match get_csrf_token(token) {
-                    Ok(value) => RwLock::new(Some(value)),
-                    Err(err) => {
-                        log::error!("Was unable to fetch CSRF token: {}", err.to_string());
-                        RwLock::new(None)
-                    }
-                };
-
-                Ok(Self {
-                    credentials,
-                    csrf_token,
-                    client: Client::new(),
-                    _marker: PhantomData,
-                })
-            }
-            _ => Ok(Self {
-                credentials,
-                csrf_token: RwLock::new(None),
-                client: Client::new(),
-                _marker: PhantomData,
-            }),
-        }
+        Ok(Self {
+            credentials,
+            csrf_token: RwLock::new(None),
+            client: Client::new(),
+            _marker: PhantomData,
+        })
     }
 
     async fn download_image(&self, id: u64) -> Result<Vec<u8>> {
+        let id = resolve_web_asset_id(id)?;
         let url = format!("https://assetdelivery.roblox.com/v1/asset/?id={}", id);
 
         let mut response = self
@@ -97,62 +80,7 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
         let mut buffer = Vec::new();
         response.copy_to(&mut buffer)?;
 
-        let mut parser = EventReader::new(&buffer[..]);
-        // ignore the StartDocument event, if it exists
-        let Ok(XmlEvent::StartDocument { .. }) = parser.next() else {
-            // if not, then this probably isn't well-formed XML and we should bail
-            return Ok(buffer);
-        };
-
-        if let Ok(XmlEvent::StartElement { name, .. }) = parser.next() {
-            if name != OwnedName::from_str("roblox").unwrap() {
-                bail!("Unknown XML from asset delivery API")
-            }
-
-            let content = loop {
-                let e = parser.next();
-                if let Ok(XmlEvent::StartElement { name, .. }) = e {
-                    if name != OwnedName::from_str("url").unwrap() {
-                        continue;
-                    }
-
-                    let Ok(XmlEvent::Characters(s)) = parser.next() else {
-                        bail!("expected characters after url start element, got something else");
-                    };
-
-                    break Some(s);
-                }
-            };
-
-            let Some(content) = content else {
-                bail!("missing url element in xml response");
-            };
-
-            let mut parts = content.split("http://www.roblox.com/asset/?id=");
-            let Some(_) = parts.next() else {
-                bail!("expected an element to exist when splitting the asset id string - did Roblox change their asset ID format?");
-            };
-
-            let Some(asset_id) = parts.next() else {
-                bail!("missing asset id - did Roblox change their asset ID format?");
-            };
-
-            let asset_id = u64::from_str(asset_id)?;
-            info!("got actual asset id {asset_id:?}, downloading that instead...");
-
-            let url = format!("https://assetdelivery.roblox.com/v1/asset/?id={}", asset_id);
-
-            let mut response = self
-                .execute_with_csrf_retry(|client| Ok(client.get(&url).build()?))
-                .await?;
-
-            let mut buffer = Vec::new();
-            response.copy_to(&mut buffer)?;
-
-            Ok(buffer)
-        } else {
-            Ok(buffer)
-        }
+        Ok(buffer)
     }
 
     /// Upload an image, returning an error if anything goes wrong.
@@ -163,7 +91,7 @@ impl<'a> RobloxApiClient<'a> for LegacyClient<'a> {
         // though we received a successful HTTP response.
         if response.success {
             let asset_id = response.asset_id.unwrap();
-            let backing_asset_id = response.backing_asset_id.unwrap();
+            let backing_asset_id = resolve_web_asset_id(response.backing_asset_id.unwrap())?;
 
             Ok(UploadResponse {
                 asset_id,

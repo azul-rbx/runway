@@ -14,13 +14,15 @@ mod open_cloud;
 
 use std::borrow::Cow;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use async_trait::async_trait;
 use rbxcloud::rbx::error::Error as RbxCloudError;
-use reqwest::StatusCode;
+use reqwest::{Client, StatusCode};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use thiserror::Error;
+use xml::{name::OwnedName, reader::XmlEvent, EventReader};
 
 use self::{legacy::LegacyClient, open_cloud::OpenCloudClient};
 
@@ -118,4 +120,62 @@ pub fn get_preferred_client(
 
         RobloxCredentials { token: Some(_), .. } => Ok(Box::new(LegacyClient::new(credentials)?)),
     }
+}
+
+pub fn resolve_web_asset_id(
+    asset_id: u64
+) -> Result<u64> {
+    let url = format!("https://assetdelivery.roblox.com/v1/asset/?id={}", asset_id);
+
+    let client = Client::new();
+    let mut response = client.execute(client.get(&url).build()?)?;
+
+    let mut buffer = Vec::new();
+    response.copy_to(&mut buffer)?;
+
+    let mut parser = EventReader::new(&buffer[..]);
+    // ignore the StartDocument event, if it exists
+    let Ok(XmlEvent::StartDocument { .. }) = parser.next() else {
+        // if not, then this probably isn't well-formed XML and we should bail
+        return Ok(asset_id);
+    };
+
+    if let Ok(XmlEvent::StartElement { name, .. }) = parser.next() {
+        if name != OwnedName::from_str("roblox").unwrap() {
+            bail!("Unknown XML from asset delivery API")
+        }
+
+        let content = loop {
+            let e = parser.next();
+            if let Ok(XmlEvent::StartElement { name, .. }) = e {
+                if name != OwnedName::from_str("url").unwrap() {
+                    continue;
+                }
+
+                let Ok(XmlEvent::Characters(s)) = parser.next() else {
+                    bail!("expected characters after url start element, got something else");
+                };
+
+                break Some(s);
+            }
+        };
+
+        let Some(content) = content else {
+            bail!("missing url element in xml response");
+        };
+
+        let mut parts = content.split("http://www.roblox.com/asset/?id=");
+        let Some(_) = parts.next() else {
+            bail!("expected an element to exist when splitting the asset id string - did Roblox change their asset ID format?");
+        };
+
+        let Some(asset_id) = parts.next() else {
+            bail!("missing asset id - did Roblox change their asset ID format?");
+        };
+
+        let asset_id = u64::from_str(asset_id)?;
+        return Ok(asset_id)
+    }
+
+    Ok(asset_id)
 }

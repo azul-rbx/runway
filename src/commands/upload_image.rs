@@ -22,7 +22,7 @@ use crate::{
     alpha_bleed::alpha_bleed,
     auth_cookie::get_auth_cookie,
     options::Global,
-    roblox_api::{get_preferred_client, ImageUploadData, RobloxCredentials},
+    roblox_api::{get_preferred_client, resolve_web_asset_id, ImageUploadData, RobloxCredentials},
 };
 
 #[derive(Debug, Args)]
@@ -111,9 +111,10 @@ pub async fn upload_image(global: Global, options: UploadImageOptions) -> anyhow
     };
 
     let response = client.upload_image(upload_data).await?;
+    let asset_id = resolve_web_asset_id(response.backing_asset_id)?;
 
     info!("Image uploaded successfully!");
-    info!("Asset ID: rbxassetid://{}", response.backing_asset_id);
+    info!("Asset ID: rbxassetid://{}", asset_id);
     info!(
         "Visit https://create.roblox.com/store/asset/{} to see it",
         response.backing_asset_id

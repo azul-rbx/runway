@@ -25,6 +25,8 @@ use rbxcloud::rbx::{
 use reqwest::StatusCode;
 use secrecy::ExposeSecret;
 
+use crate::roblox_api::resolve_web_asset_id;
+
 use super::{
     legacy::LegacyClient, ImageUploadData, RobloxApiClient, RobloxApiError, RobloxCredentials,
     UploadResponse,
@@ -132,7 +134,7 @@ impl<'a> OpenCloudClient<'a> {
 
         Ok(UploadResponse {
             asset_id,
-            backing_asset_id: asset_id,
+            backing_asset_id: resolve_web_asset_id(asset_id)?,
         })
     }
 }
